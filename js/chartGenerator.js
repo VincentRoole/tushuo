@@ -4,15 +4,18 @@
  */
 
 const ChartGenerator = {
-    
+
     // 当前图表实例
     currentChart: null,
-    
+
     // 当前图表配置
     currentConfig: null,
-    
+
     // 当前数据
     currentData: null,
+
+    // 窗口大小变化监听器
+    resizeListener: null,
 
     /**
      * 初始化图表容器
@@ -22,21 +25,106 @@ const ChartGenerator = {
         if (this.currentChart) {
             this.currentChart.dispose();
         }
-        
+
         // 清除占位符内容
         container.innerHTML = '';
-        
+
+        // 确保容器有明确的尺寸
+        this.ensureContainerSize(container);
+
         // 创建ECharts实例，使用SVG渲染器以支持SVG导出
         this.currentChart = echarts.init(container, null, { renderer: 'svg' });
-        
-        // 添加窗口大小变化监听
-        window.addEventListener('resize', () => {
-            if (this.currentChart) {
+
+        // 移除之前的监听器（如果存在）
+        if (this.resizeListener) {
+            window.removeEventListener('resize', this.resizeListener);
+        }
+
+        // 添加窗口大小变化监听（带防抖）
+        this.resizeListener = this.debounce(() => {
+            if (this.currentChart && !this.currentChart.isDisposed()) {
+                console.log('窗口大小变化，调整图表大小');
+                this.ensureContainerSize(container);
                 this.currentChart.resize();
             }
-        });
-        
+        }, 150);
+        window.addEventListener('resize', this.resizeListener);
+
+        // 添加容器大小变化监听（使用ResizeObserver）
+        if (window.ResizeObserver) {
+            if (this.containerObserver) {
+                this.containerObserver.disconnect();
+            }
+            this.containerObserver = new ResizeObserver(this.debounce((entries) => {
+                if (this.currentChart && !this.currentChart.isDisposed()) {
+                    console.log('容器大小变化，调整图表大小');
+                    for (let entry of entries) {
+                        const { width, height } = entry.contentRect;
+                        console.log('新的容器尺寸:', { width, height });
+                    }
+                    this.currentChart.resize();
+                }
+            }, 100));
+            this.containerObserver.observe(container);
+        }
+
         return this.currentChart;
+    },
+
+    /**
+     * 确保容器有明确的尺寸
+     */
+    ensureContainerSize(container) {
+        const rect = container.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+            // 如果容器没有尺寸，设置默认尺寸
+            container.style.width = '100%';
+            container.style.height = '400px';
+        }
+    },
+
+    /**
+     * 防抖函数
+     */
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    },
+
+    /**
+     * 手动调整图表大小
+     */
+    resizeChart() {
+        if (this.currentChart && !this.currentChart.isDisposed()) {
+            const container = document.getElementById('chartContainer');
+            this.ensureContainerSize(container);
+
+            // 获取容器当前尺寸用于调试
+            const rect = container.getBoundingClientRect();
+            console.log('图表容器尺寸:', {
+                width: rect.width,
+                height: rect.height,
+                containerStyle: {
+                    width: container.style.width,
+                    height: container.style.height
+                }
+            });
+
+            // 延迟执行resize，确保DOM更新完成
+            setTimeout(() => {
+                if (this.currentChart && !this.currentChart.isDisposed()) {
+                    this.currentChart.resize();
+                    console.log('图表已调整大小');
+                }
+            }, 50);
+        }
     },
 
     /**
@@ -74,6 +162,9 @@ const ChartGenerator = {
             console.log('最终绘制对象:', option);
             this.currentChart.setOption(option, true);
 
+            // 确保图表正确调整大小
+            this.resizeChart();
+
             // 启用导出按钮
             this.enableExportButtons();
 
@@ -106,6 +197,9 @@ const ChartGenerator = {
             // 直接使用LLM返回的完整配置
             console.log('使用LLM返回的完整ECharts配置');
             this.currentChart.setOption(config, true);
+
+            // 确保图表正确调整大小
+            this.resizeChart();
 
             // 启用导出按钮
             this.enableExportButtons();
@@ -1091,6 +1185,9 @@ const ChartGenerator = {
             const chartType = this.getCurrentChartType();
             const option = this.buildEChartsOption(this.currentData, mergedConfig, chartType);
             this.currentChart.setOption(option, true);
+
+            // 确保图表正确调整大小
+            this.resizeChart();
             
         } catch (error) {
             console.error('更新图表失败:', error);
@@ -1115,7 +1212,7 @@ const ChartGenerator = {
         if (this.currentChart) {
             this.currentChart.clear();
         }
-        
+
         // 显示占位符
         const container = document.getElementById('chartContainer');
         container.innerHTML = `
@@ -1124,7 +1221,7 @@ const ChartGenerator = {
                 <p>请先输入数据并进行分析</p>
             </div>
         `;
-        
+
         // 禁用导出按钮
         const exportButtons = ['exportPngBtn', 'exportSvgBtn', 'exportCodeBtn','shareChartBtn'];
         exportButtons.forEach(btnId => {
@@ -1133,7 +1230,33 @@ const ChartGenerator = {
                 btn.disabled = true;
             }
         });
-        
+
+        this.currentData = null;
+        this.currentConfig = null;
+    },
+
+    /**
+     * 销毁图表实例和清理资源
+     */
+    dispose() {
+        // 清理图表实例
+        if (this.currentChart) {
+            this.currentChart.dispose();
+            this.currentChart = null;
+        }
+
+        // 清理事件监听器
+        if (this.resizeListener) {
+            window.removeEventListener('resize', this.resizeListener);
+            this.resizeListener = null;
+        }
+
+        // 清理容器观察器
+        if (this.containerObserver) {
+            this.containerObserver.disconnect();
+            this.containerObserver = null;
+        }
+
         this.currentData = null;
         this.currentConfig = null;
     }

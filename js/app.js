@@ -68,6 +68,10 @@ class ChartGeneratorApp {
         document.getElementById('exportMaxPngBtn').addEventListener('click', () => this.exportMaximizedPNG());
         document.getElementById('exportMaxSvgBtn').addEventListener('click', () => this.exportMaximizedSVG());
 
+        // 分辨率控制事件
+        document.getElementById('resolutionSelect').addEventListener('change', () => this.handleResolutionChange());
+        document.getElementById('applyResolutionBtn').addEventListener('click', () => this.applyResolution());
+
         // 建议面板事件
         document.getElementById('refreshSuggestionsBtn').addEventListener('click', () => this.refreshSuggestions());
 
@@ -907,6 +911,10 @@ class ChartGeneratorApp {
 
         modal.style.display = 'flex';
 
+        // 重置分辨率选择器
+        document.getElementById('resolutionSelect').value = 'auto';
+        this.handleResolutionChange();
+
         // 创建新的图表实例（使用SVG渲染器以支持SVG导出）
         setTimeout(() => {
             const maxChart = echarts.init(container, null, { renderer: 'svg' });
@@ -927,6 +935,78 @@ class ChartGeneratorApp {
 
             // 保存resize处理器以便清理
             this.maxChartResizeHandler = resizeHandler;
+        }, 100);
+    }
+
+    /**
+     * 处理分辨率选择变化
+     */
+    handleResolutionChange() {
+        const select = document.getElementById('resolutionSelect');
+        const customDiv = document.getElementById('customResolution');
+
+        if (select.value === 'custom') {
+            customDiv.style.display = 'flex';
+        } else {
+            customDiv.style.display = 'none';
+        }
+    }
+
+    /**
+     * 应用分辨率设置
+     */
+    applyResolution() {
+        if (!this.maximizedChart) {
+            Utils.showNotification('没有可调整的图表', 'warning');
+            return;
+        }
+
+        const select = document.getElementById('resolutionSelect');
+        const container = document.getElementById('chartMaxContainer');
+        let width, height;
+
+        if (select.value === 'auto') {
+            // 自适应 - 恢复默认样式
+            container.style.width = '100%';
+            container.style.height = 'calc(95vh - 120px)';
+            Utils.showNotification('已设置为自适应模式', 'success');
+        } else if (select.value === 'custom') {
+            // 自定义分辨率
+            width = parseInt(document.getElementById('customWidth').value);
+            height = parseInt(document.getElementById('customHeight').value);
+
+            if (!width || !height || width < 100 || height < 100) {
+                Utils.showNotification('请输入有效的自定义分辨率 (最小100x100)', 'error');
+                return;
+            }
+        } else {
+            // 预设分辨率
+            const [w, h] = select.value.split('x').map(Number);
+            width = w;
+            height = h;
+        }
+
+        if (width && height) {
+            // 设置固定尺寸
+            container.style.width = width + 'px';
+            container.style.height = height + 'px';
+
+            // 如果尺寸超出视窗，添加滚动
+            const modal = document.querySelector('.chart-max-content');
+            if (width > window.innerWidth * 0.9 || height > window.innerHeight * 0.8) {
+                modal.style.overflow = 'auto';
+            } else {
+                modal.style.overflow = 'hidden';
+            }
+
+            Utils.showNotification(`已设置分辨率为 ${width}×${height}`, 'success');
+        }
+
+        // 延迟调整图表大小
+        setTimeout(() => {
+            if (this.maximizedChart) {
+                this.maximizedChart.resize();
+            }
         }, 100);
     }
 
@@ -989,9 +1069,15 @@ class ChartGeneratorApp {
         }
 
         try {
+            // 获取当前分辨率设置
+            const resolution = this.getCurrentResolution();
+            const resolutionText = resolution.width && resolution.height ?
+                `_${resolution.width}x${resolution.height}` : '_maximized';
+
             // 检查渲染器类型
             const rendererType = this.maximizedChart.getZr().painter.type;
             console.log('最大化PNG导出 - 渲染器类型:', rendererType);
+            console.log('导出分辨率:', resolution);
 
             if (rendererType === 'canvas') {
                 // Canvas渲染器直接使用getDataURL
@@ -1003,7 +1089,7 @@ class ChartGeneratorApp {
 
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = `chart_maximized_${Utils.formatDate(new Date(), 'YYYY-MM-DD_HH-mm-ss')}.png`;
+                link.download = `chart${resolutionText}_${Utils.formatDate(new Date(), 'YYYY-MM-DD_HH-mm-ss')}.png`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -1011,7 +1097,7 @@ class ChartGeneratorApp {
                 Utils.showNotification('最大化图表PNG导出成功', 'success');
             } else {
                 // SVG渲染器需要转换为PNG
-                this.convertMaximizedSVGToPNG();
+                this.convertMaximizedSVGToPNG(resolution, resolutionText);
             }
 
         } catch (error) {
@@ -1021,9 +1107,42 @@ class ChartGeneratorApp {
     }
 
     /**
+     * 获取当前分辨率设置
+     */
+    getCurrentResolution() {
+        const select = document.getElementById('resolutionSelect');
+        const container = document.getElementById('chartMaxContainer');
+
+        if (select.value === 'auto') {
+            // 自适应模式，使用容器当前尺寸
+            const rect = container.getBoundingClientRect();
+            return {
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+                mode: 'auto'
+            };
+        } else if (select.value === 'custom') {
+            // 自定义分辨率
+            return {
+                width: parseInt(document.getElementById('customWidth').value),
+                height: parseInt(document.getElementById('customHeight').value),
+                mode: 'custom'
+            };
+        } else {
+            // 预设分辨率
+            const [width, height] = select.value.split('x').map(Number);
+            return {
+                width,
+                height,
+                mode: 'preset'
+            };
+        }
+    }
+
+    /**
      * 将最大化图表的SVG转换为PNG并下载
      */
-    convertMaximizedSVGToPNG() {
+    convertMaximizedSVGToPNG(resolution, resolutionText) {
         const chartDom = this.maximizedChart.getDom();
         const svgElement = chartDom.querySelector('svg');
 
@@ -1033,8 +1152,14 @@ class ChartGeneratorApp {
 
         // 获取SVG的尺寸
         const rect = svgElement.getBoundingClientRect();
-        const width = rect.width || 800;
-        const height = rect.height || 600;
+        let width = rect.width || 800;
+        let height = rect.height || 600;
+
+        // 如果有指定分辨率，使用指定的分辨率
+        if (resolution && resolution.width && resolution.height && resolution.mode !== 'auto') {
+            width = resolution.width;
+            height = resolution.height;
+        }
 
         // 创建Canvas
         const canvas = document.createElement('canvas');
@@ -1060,12 +1185,28 @@ class ChartGeneratorApp {
         const img = new Image();
         img.onload = () => {
             try {
-                ctx.drawImage(img, 0, 0, width, height);
+                // 如果需要缩放到指定分辨率
+                if (resolution && resolution.width && resolution.height && resolution.mode !== 'auto') {
+                    // 计算缩放比例以保持宽高比
+                    const scaleX = width / rect.width;
+                    const scaleY = height / rect.height;
+                    const scale = Math.min(scaleX, scaleY);
+
+                    const scaledWidth = rect.width * scale;
+                    const scaledHeight = rect.height * scale;
+                    const offsetX = (width - scaledWidth) / 2;
+                    const offsetY = (height - scaledHeight) / 2;
+
+                    ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+                } else {
+                    ctx.drawImage(img, 0, 0, width, height);
+                }
+
                 const pngUrl = canvas.toDataURL('image/png');
 
                 const link = document.createElement('a');
                 link.href = pngUrl;
-                link.download = `chart_maximized_${Utils.formatDate(new Date(), 'YYYY-MM-DD_HH-mm-ss')}.png`;
+                link.download = `chart${resolutionText || '_maximized'}_${Utils.formatDate(new Date(), 'YYYY-MM-DD_HH-mm-ss')}.png`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -1096,8 +1237,14 @@ class ChartGeneratorApp {
         }
 
         try {
+            // 获取当前分辨率设置
+            const resolution = this.getCurrentResolution();
+            const resolutionText = resolution.width && resolution.height ?
+                `_${resolution.width}x${resolution.height}` : '_maximized';
+
             // 检查渲染器类型
             console.log('最大化图表渲染器:', this.maximizedChart.getZr().painter.type);
+            console.log('导出分辨率:', resolution);
 
             // 获取SVG字符串
             let svgStr;
@@ -1119,7 +1266,7 @@ class ChartGeneratorApp {
 
             const link = document.createElement('a');
             link.href = url;
-            link.download = `chart_maximized_${Utils.formatDate(new Date(), 'YYYY-MM-DD_HH-mm-ss')}.svg`;
+            link.download = `chart${resolutionText}_${Utils.formatDate(new Date(), 'YYYY-MM-DD_HH-mm-ss')}.svg`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

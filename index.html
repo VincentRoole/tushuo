@@ -235,6 +235,30 @@
                 <div class="modal-header">
                     <h3><i class="fas fa-chart-line"></i> 图表预览 - 最大化</h3>
                     <div class="chart-max-controls">
+                        <div class="resolution-selector">
+                            <label for="resolutionSelect">分辨率:</label>
+                            <select id="resolutionSelect" class="resolution-select">
+                                <option value="auto">自适应</option>
+                                <option value="1920x1080">1920×1080 (Full HD)</option>
+                                <option value="1366x768">1366×768 (HD)</option>
+                                <option value="1280x720">1280×720 (HD Ready)</option>
+                                <option value="1024x768">1024×768 (XGA)</option>
+                                <option value="800x600">800×600 (SVGA)</option>
+                                <option value="1200x800">1200×800 (宽屏)</option>
+                                <option value="1600x900">1600×900 (HD+)</option>
+                                <option value="2560x1440">2560×1440 (2K)</option>
+                                <option value="3840x2160">3840×2160 (4K)</option>
+                                <option value="custom">自定义</option>
+                            </select>
+                        </div>
+                        <div class="custom-resolution" id="customResolution" style="display: none;">
+                            <input type="number" id="customWidth" placeholder="宽度" min="100" max="10000" value="1920">
+                            <span>×</span>
+                            <input type="number" id="customHeight" placeholder="高度" min="100" max="10000" value="1080">
+                        </div>
+                        <button id="applyResolutionBtn" class="btn btn-primary">
+                            <i class="fas fa-expand-arrows-alt"></i> 应用
+                        </button>
                         <button id="exportMaxPngBtn" class="btn btn-secondary">
                             <i class="fas fa-image"></i> 导出PNG
                         </button>

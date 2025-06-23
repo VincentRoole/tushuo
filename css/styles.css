@@ -362,12 +362,15 @@ section h2 i {
 .chart-container {
     width: 100%;
     flex: 1;
-    min-height: 0;
+    min-height: 400px;
+    height: 100%;
     border: none;
     border-radius: 8px;
     background: #f8f9fa;
     position: relative;
     overflow: hidden;
+    /* 确保容器有明确的尺寸 */
+    box-sizing: border-box;
 }
 
 .chart-placeholder {
