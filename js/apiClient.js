@@ -166,7 +166,7 @@ const ApiClient = {
         const messages = [
             {
                 role: 'system',
-                content: '你是一个专业的数据可视化专家，擅长根据数据特征推荐最适合的图表类型。请严格按照要求的JSON格式返回结果。'
+                content: '你是一个专业的数据可视化专家，擅长根据数据特征推荐最适合的图表类型。请严格按照要求返回结果。'
             },
             {
                 role: 'user',
@@ -271,7 +271,7 @@ const ApiClient = {
         const messages = [
             {
                 role: 'system',
-                content: '你是一个专业的ECharts配置生成专家，专门根据用户需求和完整数据生成美观、专业的图表配置。请严格按照要求的JSON格式返回结果。'
+                content: '你是一个专业的ECharts配置生成专家，专门根据用户需求和完整数据生成美观、专业的图表配置。请严格按照要求返回结果。'
             }
         ];
 
@@ -396,7 +396,7 @@ const ApiClient = {
         const messages = [
             {
                 role: 'system',
-                content: '你是一个专业的ECharts配置生成专家，专门根据用户需求和原始数据生成美观、专业的图表配置。请严格按照要求的JSON格式返回结果。'
+                content: '你是一个专业的ECharts配置生成专家，专门根据用户需求和原始数据生成美观、专业的图表配置。请严格按照要求返回结果。'
             }
         ];
 
@@ -648,7 +648,7 @@ const ApiClient = {
         const messages = [
             {
                 role: 'system',
-                content: '你是一个ECharts配置专家，擅长根据数据和图表类型生成详细的配置参数。请严格按照要求的JSON格式返回结果。'
+                content: '你是一个ECharts配置专家，擅长根据数据和图表类型生成详细的配置参数。请严格按照要求返回结果。'
             },
             {
                 role: 'user',
@@ -860,7 +860,7 @@ ${JSON.stringify(data, null, 2)}${currentConfigInfo}
 1. 直接返回完整的ECharts option配置
 2. 根据用户需求选择合适的图表类型和样式
 3. 包含丰富的交互效果和美观的样式
-4. 只返回JSON对象，不要包含其他文字`;
+4. 只返回ECharts option配置，不要包含其他文字`;
     },
 
     /**
@@ -977,7 +977,7 @@ ${rawDataInput}
 1. 直接返回完整的ECharts option配置
 2. 根据用户需求选择合适的图表类型和样式
 3. 包含丰富的交互效果和美观的样式
-4. 只返回JSON对象，不要包含其他文字`;
+4. 只返回ECharts option配置，不要包含其他文字`;
     },
 
     /**
